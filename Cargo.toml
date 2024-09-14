@@ -1,0 +1,15 @@
+[package]
+name = "spreet"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+
+[dependencies]
+calamine = "0.25.0"
+serde = "1.0.209"
+serde_bytes = "0.11.15"
+ciborium = "0.2.2"
+wasm-minimal-protocol = { git = "https://github.com/astrale-sharp/wasm-minimal-protocol" }
