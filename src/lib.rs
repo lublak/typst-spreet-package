@@ -1,4 +1,4 @@
-use std::{collections::HashMap, io::Cursor, result};
+use std::{collections::HashMap, io::Cursor};
 
 use calamine::{Data, Reader};
 use chrono::{Datelike, NaiveDateTime, Timelike};
@@ -14,7 +14,7 @@ initiate_protocol!();
 pub(crate) enum SheetValue {
     Null,
     Bool(bool),
-    Int(i64),
+    //Int(i64),
     Float(f64),
     String(String),
 }
@@ -139,7 +139,7 @@ fn get_sheet_data(sd: calamine::Range<Data>) -> Vec<Vec<SheetValue>> {
         .map(|row| {
             row.iter()
                 .map(|col| match *col {
-                    Data::Int(value) => SheetValue::Int(value),
+                    Data::Int(value) => SheetValue::Float(value as f64), // if i looked correctly, there is no "int" parsing
                     Data::Float(value) => SheetValue::Float(value),
                     Data::String(ref value) => SheetValue::String(value.to_owned()),
                     Data::Bool(value) => SheetValue::Bool(value),
@@ -187,7 +187,9 @@ fn get_sheet_infos_xls(s: &umya_spreadsheet::Worksheet) -> WorkSheetInfos {
                         umya_spreadsheet::CellRawValue::String(value) => {
                             SheetValue::String(value.to_string())
                         }
-                        umya_spreadsheet::CellRawValue::RichText(rich_text) => todo!(),
+                        umya_spreadsheet::CellRawValue::RichText(rich_text) => {
+                            SheetValue::String(rich_text.get_text().to_string())
+                        }
                         umya_spreadsheet::CellRawValue::Lazy(_) => todo!(),
                         umya_spreadsheet::CellRawValue::Numeric(value) => SheetValue::Float(*value),
                         umya_spreadsheet::CellRawValue::Bool(value) => SheetValue::Bool(*value),
@@ -241,7 +243,16 @@ fn get_sheet_infos_ods(s: &spreadsheet_ods::Sheet) -> WorkSheetInfos {
                     spreadsheet_ods::Value::Percentage(value) => SheetValue::Float(*value),
                     spreadsheet_ods::Value::Currency(_, _) => todo!(),
                     spreadsheet_ods::Value::Text(value) => SheetValue::String(value.clone()),
-                    spreadsheet_ods::Value::TextXml(xml_tags) => todo!(),
+                    spreadsheet_ods::Value::TextXml(xml_tags) => {
+                        let mut buf = String::new();
+                        for t in xml_tags {
+                            if !buf.is_empty() {
+                                buf.push('\n');
+                            }
+                            t.extract_text(&mut buf);
+                        }
+                        SheetValue::String(buf)
+                    }
                     spreadsheet_ods::Value::DateTime(naive_date_time) => {
                         SheetValue::String(naive_date_time.to_string())
                     }
