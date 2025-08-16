@@ -4,7 +4,10 @@ Spreet is a spreadsheet decoder for typst (excel/opendocument spreadsheets).
 In the normal mode the spreadsheet will be read and parsed into a dictonary of 2-dimensional array of strings:
 Each workbook in the spreadsheet is mapped as an entry in the dictonary.
 Each row of the workbook is represented as an array of strings, and all rows are summarised in a single array.
-For full parsing for all information including formating, use the "full" option.
+For full parsing for all information use the "full" option.
+
+> [!WARNING]
+> The ‘full’ option is currently in an unstable state. Fundamental changes (breaking changes) may occur.
 
 (
   "sheetname": (range),
@@ -42,7 +45,7 @@ excel_data or opendocument_data contains a dict of all worksheets (of the select
 )
 **/
 
-// for full decoding with all information (dimensions, formating, etc) use the "full" parameter
+// for full decoding with all information use the "full" parameter
 
 #let excel_data = spreet.file-decode("excel.xlsx", full: true)
 #let opendocument_data = spreet.file-decode("opendocument.ods", full: true)
