@@ -270,7 +270,7 @@ fn decode(data: &[u8]) -> Result<Vec<u8>, String> {
     let mut workbook = calamine::open_workbook_auto_from_rs(Cursor::new(data))
         .map_err(|e| format!("failed to deserialize data as workbook: {}", e.to_string()))?;
 
-    let result: HashMap<String, _> = workbook
+    let result: IndexMap<String, _> = workbook
         .worksheets()
         .into_iter()
         .map(|ws| (ws.0, get_sheet_data(ws.1)))
@@ -291,7 +291,7 @@ fn decode_sheet_by_indexes(data: &[u8], indexes: &[u8]) -> Result<Vec<u8>, Strin
 
     let names = workbook.sheet_names();
 
-    let result: Result<HashMap<String, Vec<Vec<SheetValue>>>, String> = indexes
+    let result: Result<IndexMap<String, Vec<Vec<SheetValue>>>, String> = indexes
         .iter()
         .map(|i| match i {
             SheetIdent::Index(index) => {
