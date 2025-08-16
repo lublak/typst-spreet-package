@@ -1,7 +1,8 @@
-use std::{collections::HashMap, io::Cursor};
+use std::io::Cursor;
 
 use calamine::{Data, Reader};
 use chrono::{Datelike, NaiveDateTime, Timelike};
+use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use spreadsheet_ods::OdsOptions;
 use umya_spreadsheet::reader;
@@ -190,7 +191,7 @@ fn get_sheet_infos_xls(s: &umya_spreadsheet::Worksheet) -> WorkSheetInfos {
                         umya_spreadsheet::CellRawValue::RichText(rich_text) => {
                             SheetValue::String(rich_text.get_text().to_string())
                         }
-                        umya_spreadsheet::CellRawValue::Lazy(_) => todo!(),
+                        umya_spreadsheet::CellRawValue::Lazy(_) => SheetValue::Null,
                         umya_spreadsheet::CellRawValue::Numeric(value) => SheetValue::Float(*value),
                         umya_spreadsheet::CellRawValue::Bool(value) => SheetValue::Bool(*value),
                         umya_spreadsheet::CellRawValue::Error(cell_error_type) => {
@@ -241,7 +242,7 @@ fn get_sheet_infos_ods(s: &spreadsheet_ods::Sheet) -> WorkSheetInfos {
                     spreadsheet_ods::Value::Boolean(value) => SheetValue::Bool(*value),
                     spreadsheet_ods::Value::Number(value) => SheetValue::Float(*value),
                     spreadsheet_ods::Value::Percentage(value) => SheetValue::Float(*value),
-                    spreadsheet_ods::Value::Currency(_, _) => todo!(),
+                    spreadsheet_ods::Value::Currency(value, _) => SheetValue::Float(*value),
                     spreadsheet_ods::Value::Text(value) => SheetValue::String(value.clone()),
                     spreadsheet_ods::Value::TextXml(xml_tags) => {
                         let mut buf = String::new();

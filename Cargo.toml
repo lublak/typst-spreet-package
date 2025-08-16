@@ -7,7 +7,7 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-calamine = "0.28.0"
+calamine = "0.30.0"
 serde = "1.0.217"
 serde_bytes = "0.11.15"
 ciborium = "0.2.2"
@@ -16,3 +16,4 @@ umya-spreadsheet = { version = "2.2.1", features = ["js"] }
 spreadsheet-ods = "0.25.0"
 infer = { version = "0.19.0", default-features = false }
 wasm-minimal-protocol = { git = "https://github.com/astrale-sharp/wasm-minimal-protocol" }
+indexmap = { version = "2.10.0", features = ["serde"] }
