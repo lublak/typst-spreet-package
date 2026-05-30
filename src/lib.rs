@@ -203,7 +203,7 @@ fn get_cell_span_xls(col: u32, row: u32, merged: &[umya_spreadsheet::Range]) -> 
             .map(|r| *r.get_num())
             .unwrap_or(start_row);
 
-        if col >= start_col && col <= end_col && row >= start_row && row <= end_row {
+        if col == start_col && row == start_row {
             let col_span = end_col.saturating_sub(start_col).saturating_add(1);
             let row_span = end_row.saturating_sub(start_row).saturating_add(1);
             return (col_span, row_span);
