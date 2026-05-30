@@ -438,7 +438,7 @@ fn decode_sheet_by_indexes(data: &[u8], indexes: &[u8]) -> Result<Vec<u8>, Strin
 #[wasm_func]
 fn decode_full(data: &[u8]) -> Result<Vec<u8>, String> {
     let info: WorkBookInfos;
-    if infer::doc::is_xls(data) {
+    if infer::doc::is_xls(data) || infer::doc::is_xlsx(data) {
         let workbook = reader::xlsx::read_reader(Cursor::new(data), true).unwrap();
         let props = workbook.get_properties();
 
@@ -492,7 +492,7 @@ fn decode_full_by_indexes(data: &[u8], indexes: &[u8]) -> Result<Vec<u8>, String
         .map_err(|e| format!("failed to deserialize options: {}", e.to_string()))?;
 
     let info: WorkBookInfos;
-    if infer::doc::is_xls(data) {
+    if infer::doc::is_xls(data) || infer::doc::is_xlsx(data) {
         let workbook = reader::xlsx::read_reader(Cursor::new(data), true).unwrap();
         let props = workbook.get_properties();
 
