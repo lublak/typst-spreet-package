@@ -241,8 +241,8 @@ fn get_sheet_infos_xls(s: &umya_spreadsheet::Worksheet) -> WorkSheetInfos {
                 let row = *coord.get_row_num();
                 let (col_span, row_span) = get_cell_span_xls(col, row, merged);
                 CellInfos {
-                    x: col,
-                    y: row,
+                    x: col - 1,
+                    y: row - 1,
                     value: match c.get_raw_value() {
                         umya_spreadsheet::CellRawValue::String(value) => {
                             SheetValue::String(value.to_string())
