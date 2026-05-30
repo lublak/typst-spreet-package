@@ -1,12 +1,9 @@
-if [ ! -d "binaryen-version_123" ]; then
-    curl -L https://github.com/WebAssembly/binaryen/releases/download/version_123/binaryen-version_123-x86_64-linux.tar.gz | tar zx
+if [ ! -d "binaryen-version_129" ]; then
+    curl -L https://github.com/WebAssembly/binaryen/releases/download/version_129/binaryen-version_129-x86_64-linux.tar.gz | tar zx
 fi
-if [ ! -d "wasm-minimal-protocol" ]; then
-    git clone https://github.com/astrale-sharp/wasm-minimal-protocol
-    cd wasm-minimal-protocol/crates/wasi-stub
-    cargo build --release
-    cd ../../..
-fi
+cd wasm-minimal-protocol/crates/wasi-stub
+cargo build --release
+cd ../../..
 rustup target add wasm32-wasip1
 cp README.md typst-package/
 cp LICENSE typst-package/
