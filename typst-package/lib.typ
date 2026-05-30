@@ -31,3 +31,5 @@
 ) = {
   decode(read(path, encoding: none), options: options)
 }
+
+#let format() = {}

@@ -15,17 +15,6 @@ initiate_protocol!();
 pub(crate) enum SheetValue {
     Null,
     Bool(bool),
-    //Int(i64),
-    Float(f64),
-    String(String),
-}
-
-#[derive(Clone, Serialize, Deserialize)]
-#[serde(untagged)]
-pub(crate) enum ExtendedSheetValue {
-    Null,
-    Bool(bool),
-    Int(i64),
     Float(f64),
     String(String),
 }
@@ -36,26 +25,6 @@ pub(crate) enum SheetIdent {
     Index(usize),
     Name(String),
 }
-
-//#[derive(Serialize, Deserialize)]
-//#[serde(untagged)]
-//pub(crate) enum SheetDecodeRange {
-//    TableName(String),
-//    RowColumns(),
-//}
-
-//#[derive(Serialize, Deserialize)]
-//struct SheetDecodeIdentAndRange {
-//    ident: SheetIdent,
-//    range: SheetDecodeRange,
-//}
-
-//#[derive(Serialize, Deserialize)]
-//#[serde(untagged)]
-//pub(crate) enum SheetDecode {
-//    OnlySheetIdents(Vec<SheetIdent>),
-//    //    IdentAndRange(Vec<SheetDecodeIdentAndRange>), todo!
-//}
 
 #[derive(Serialize, Deserialize)]
 struct DateTime {
@@ -123,15 +92,40 @@ struct CellInfos {
     col_span: u32,
     row_span: u32,
     value: SheetValue,
+    style: CellStyle,
 }
 
 #[derive(Serialize, Deserialize)]
-struct FontStyle {
+struct CellStyle {
+    font: CellFontStyle,
+    //horizontal_align: String,
+    //vertical_align: String,
+    //border: CellBorderStyle,
+    //format: String,
+}
+
+#[derive(Serialize, Deserialize)]
+struct CellBorderStyle {
+    left: String,
+    top: String,
+    right: String,
+    bottom: String,
+}
+
+#[derive(Serialize, Deserialize)]
+enum CellFontUnderline {
+    Double,
+    None,
+    Single,
+}
+
+#[derive(Serialize, Deserialize)]
+struct CellFontStyle {
     bold: bool,
     italic: bool,
-    size: f64,
-    color: Option<String>,
-    underline: bool,
+    size: String,
+    color: String,
+    underline: CellFontUnderline,
     strike: bool,
 }
 
@@ -155,9 +149,71 @@ fn get_sheet_data(sd: calamine::Range<Data>) -> Vec<Vec<SheetValue>> {
         .collect()
 }
 
+pub fn get_cell_style_xls(cell: &umya_spreadsheet::Cell) -> CellStyle {
+    let cell_style = cell.get_style();
+
+    let font = cell_style
+        .get_font()
+        .map(|font| CellFontStyle {
+            bold: *font.get_bold(),
+            italic: *font.get_italic(),
+            size: format!("{}pt", font.get_size()),
+            color: font.get_color().get_argb().to_string(),
+            underline: match font.get_font_underline().get_val() {
+                umya_spreadsheet::structs::UnderlineValues::Double => CellFontUnderline::Double,
+                umya_spreadsheet::structs::UnderlineValues::DoubleAccounting => {
+                    CellFontUnderline::Double
+                }
+                umya_spreadsheet::structs::UnderlineValues::None => CellFontUnderline::None,
+                umya_spreadsheet::structs::UnderlineValues::Single => CellFontUnderline::Single,
+                umya_spreadsheet::structs::UnderlineValues::SingleAccounting => {
+                    CellFontUnderline::Single
+                }
+            },
+            strike: *font.get_strikethrough(),
+        })
+        .unwrap_or(CellFontStyle {
+            bold: false,
+            italic: false,
+            size: "10pt".to_string(),
+            color: "#000000".to_string(),
+            underline: CellFontUnderline::None,
+            strike: false,
+        });
+
+    CellStyle { font }
+}
+
+fn get_cell_span_xls(col: u32, row: u32, merged: &[umya_spreadsheet::Range]) -> (u32, u32) {
+    for merged_range in merged {
+        let start_col = merged_range
+            .get_coordinate_start_col()
+            .map(|c| *c.get_num())
+            .unwrap_or(1);
+        let start_row = merged_range
+            .get_coordinate_start_row()
+            .map(|r| *r.get_num())
+            .unwrap_or(1);
+        let end_col = merged_range
+            .get_coordinate_end_col()
+            .map(|c| *c.get_num())
+            .unwrap_or(start_col);
+        let end_row = merged_range
+            .get_coordinate_end_row()
+            .map(|r| *r.get_num())
+            .unwrap_or(start_row);
+
+        if col >= start_col && col <= end_col && row >= start_row && row <= end_row {
+            let col_span = end_col.saturating_sub(start_col).saturating_add(1);
+            let row_span = end_row.saturating_sub(start_row).saturating_add(1);
+            return (col_span, row_span);
+        }
+    }
+    return (1, 1);
+}
+
 fn get_sheet_infos_xls(s: &umya_spreadsheet::Worksheet) -> WorkSheetInfos {
-    //ws.get_cell_collection_sorted().iter().map(|c| c.)
-    //ws.get_merge_cells()[0].get_coordinate_start_col()
+    let merged = s.get_merge_cells();
     return WorkSheetInfos {
         name: s.get_name().to_string(),
         rows: s
@@ -181,9 +237,12 @@ fn get_sheet_infos_xls(s: &umya_spreadsheet::Worksheet) -> WorkSheetInfos {
             .iter()
             .map(|c| {
                 let coord = c.get_coordinate();
+                let col = *coord.get_col_num();
+                let row = *coord.get_row_num();
+                let (col_span, row_span) = get_cell_span_xls(col, row, merged);
                 CellInfos {
-                    x: *coord.get_col_num(),
-                    y: *coord.get_row_num(),
+                    x: col,
+                    y: row,
                     value: match c.get_raw_value() {
                         umya_spreadsheet::CellRawValue::String(value) => {
                             SheetValue::String(value.to_string())
@@ -199,15 +258,72 @@ fn get_sheet_infos_xls(s: &umya_spreadsheet::Worksheet) -> WorkSheetInfos {
                         }
                         umya_spreadsheet::CellRawValue::Empty => SheetValue::Null,
                     },
-                    col_span: 1,
-                    row_span: 1,
+                    col_span: col_span,
+                    row_span: row_span,
+                    style: get_cell_style_xls(c),
                 }
             })
             .collect(),
     };
 }
 
-fn get_sheet_infos_ods(s: &spreadsheet_ods::Sheet) -> WorkSheetInfos {
+fn get_cell_style_ods(
+    w: &spreadsheet_ods::WorkBook,
+    cell: &spreadsheet_ods::CellContentRef,
+) -> CellStyle {
+    match cell.style().and_then(|s| w.cellstyle(s)) {
+        Some(s) => {
+            let textstyle = s.textstyle();
+            return CellStyle {
+                font: CellFontStyle {
+                    bold: textstyle
+                        .attr("fo:font-weight")
+                        .map(|w| w == "bold")
+                        .unwrap_or(false),
+                    italic: textstyle
+                        .attr("fo:font-style")
+                        .map(|s| s == "italic")
+                        .unwrap_or(false),
+                    size: textstyle.attr("fo:font-size").unwrap_or("10pt").to_string(),
+                    color: textstyle.attr("fo:color").unwrap_or("#000000").to_string(),
+                    underline: textstyle
+                        .attr("style:text-underline-style")
+                        .map(|v| match v {
+                            "none" => CellFontUnderline::None,
+                            "solid" => textstyle
+                                .attr("style:text-underline-style")
+                                .map(|v| match v {
+                                    "double" => CellFontUnderline::Double,
+                                    _ => CellFontUnderline::None,
+                                })
+                                .unwrap_or(CellFontUnderline::None),
+                            _ => CellFontUnderline::None,
+                        })
+                        .unwrap_or(CellFontUnderline::None),
+                    strike: textstyle
+                        .attr("style:text-line-through-style")
+                        .map(|s| !s.is_empty() && s != "none")
+                        .unwrap_or(false),
+                },
+            };
+        }
+        None => CellStyle {
+            font: CellFontStyle {
+                bold: false,
+                italic: false,
+                size: "10pt".to_string(),
+                color: "#000000".to_string(),
+                underline: CellFontUnderline::None,
+                strike: false,
+            },
+        },
+    }
+}
+
+fn get_sheet_infos_ods(
+    w: &spreadsheet_ods::WorkBook,
+    s: &spreadsheet_ods::Sheet,
+) -> WorkSheetInfos {
     return WorkSheetInfos {
         name: s.name().to_string(),
         rows: (0..s.row_header_max())
@@ -261,6 +377,7 @@ fn get_sheet_infos_ods(s: &spreadsheet_ods::Sheet) -> WorkSheetInfos {
                         SheetValue::String(time_delta.to_string())
                     }
                 },
+                style: get_cell_style_ods(w, &c.1),
             })
             .collect(),
     };
@@ -347,7 +464,7 @@ fn decode_full(data: &[u8]) -> Result<Vec<u8>, String> {
 
         let sheets = workbook
             .iter_sheets()
-            .map(|s| get_sheet_infos_ods(s))
+            .map(|s| get_sheet_infos_ods(&workbook, s))
             .collect();
 
         info = WorkBookInfos {
@@ -419,9 +536,10 @@ fn decode_full_by_indexes(data: &[u8], indexes: &[u8]) -> Result<Vec<u8>, String
                         return Err(format!("index {} not found", index));
                     }
 
-                    Ok(get_sheet_infos_ods(workbook.sheet(*index)))
+                    Ok(get_sheet_infos_ods(&workbook, workbook.sheet(*index)))
                 }
                 SheetIdent::Name(name) => Ok(get_sheet_infos_ods(
+                    &workbook,
                     workbook.sheet(
                         workbook
                             .sheet_idx(name)

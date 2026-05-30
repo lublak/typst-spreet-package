@@ -8,13 +8,14 @@ For full parsing for all information use the "full" option.
 
 > [!WARNING]
 > The ‘full’ option is currently in an unstable state. Fundamental changes (breaking changes) may occur.
+> Addionally its not fully tested.
 
 (
   "sheetname": (range),
   index: (range),
 )
 
-!The library only supports normal tables. Charts are not supported.!
+!The library only supports normal sheets. Charts are not supported.!
 
 
 ## Example
