@@ -6,11 +6,11 @@ Each workbook in the spreadsheet is mapped as an entry in the dictonary.
 Each row of the workbook is represented as an array of strings, and all rows are summarised in a single array.
 For full parsing for all information use the "full" option.
 
-> [!WARNING]
-> The ‘full’ option is currently in an unstable state. Fundamental changes (breaking changes) may occur.
-> Addionally its not fully tested.
-
-!The library only supports normal sheets. Charts are not supported.!
+!!!
+The ‘full’ option is currently in an unstable state. Fundamental changes (breaking changes) may occur.
+Addionally its not fully tested.
+The library only supports normal sheets. Charts are not supported.
+!!!
 
 
 ## Example
