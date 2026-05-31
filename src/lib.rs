@@ -113,6 +113,7 @@ struct CellBorderStyle {
 }
 
 #[derive(Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 enum CellFontUnderline {
     Double,
     None,
@@ -299,11 +300,27 @@ fn get_cell_span_ods(
     return (1, 1, false);
 }
 
+fn ods_cellstyle<'a>(
+    wb: &'a spreadsheet_ods::WorkBook,
+    s: &spreadsheet_ods::Sheet,
+    cell: &spreadsheet_ods::CellContentRef<'_>,
+    col: u32,
+    row: u32,
+) -> Option<&'a spreadsheet_ods::CellStyle> {
+    cell.style()
+        .or_else(|| s.col_cellstyle(col))
+        .or_else(|| s.row_cellstyle(row))
+        .and_then(|style| wb.cellstyle(style))
+}
+
 fn get_cell_style_ods(
     w: &spreadsheet_ods::WorkBook,
+    s: &spreadsheet_ods::Sheet,
     cell: &spreadsheet_ods::CellContentRef,
+    col: u32,
+    row: u32,
 ) -> CellStyle {
-    match cell.style().and_then(|s| w.cellstyle(s)) {
+    match ods_cellstyle(w, s, cell, col, row) {
         Some(s) => {
             let textstyle = s.textstyle();
             return CellStyle {
@@ -445,7 +462,7 @@ fn get_sheet_infos_ods(
                         SheetValue::String(time_delta.to_string())
                     }
                 },
-                style: get_cell_style_ods(w, &c.1),
+                        style: get_cell_style_ods(w, s, &c.1, c.0 .0, c.0 .1),
                     })
                 }
             })
