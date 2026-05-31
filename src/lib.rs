@@ -563,7 +563,7 @@ fn decode(data: &[u8]) -> Result<Vec<u8>, String> {
 }
 
 #[wasm_func]
-fn decode_sheet_by_indexes(data: &[u8], indexes: &[u8]) -> Result<Vec<u8>, String> {
+fn decode_by_indexes(data: &[u8], indexes: &[u8]) -> Result<Vec<u8>, String> {
     let mut workbook = calamine::open_workbook_auto_from_rs(Cursor::new(data))
         .map_err(|e| format!("failed to deserialize data as workbook: {}", e.to_string()))?;
     let indexes: Vec<SheetIdent> = ciborium::from_reader(indexes)
