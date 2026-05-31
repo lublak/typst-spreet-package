@@ -21,7 +21,7 @@ For full parsing for all information use the "full" option.
 #let excel_data_from_bytes = spreet.decode(read("excel.xlsx", encoding: none))
 #let opendocument_data_from_bytes = spreet.decode(read("opendocument.ods", encoding: none))
 
-#let excel_data_with_index = spreet.decode(read("excel.xlsx", encoding: none)options: (sheets: (0, "Tabelle2",)))
+#let excel_data_with_index = spreet.decode(read("excel.xlsx", encoding: none), options: (sheets: (0, "Tabelle2",)))
 ```
 
 excel_data or opendocument_data contains a dict of all worksheets (of the selected worksheet)
@@ -44,7 +44,7 @@ for full decoding with all information use the "full" parameter
 ```typst
 #import "@preview/spreet:0.2.0"
 
-#let excel_data_from_bytes = spreet.decode(read("excel.xlsx", encoding: none), options: (full: true)
+#let excel_data_from_bytes = spreet.decode(read("excel.xlsx", encoding: none), options: (full: true))
 #let opendocument_data_from_bytes = spreet.decode(read("opendocument.ods", encoding: none), options: (full: true))
 ```
 
