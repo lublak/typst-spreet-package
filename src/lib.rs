@@ -426,14 +426,15 @@ fn get_sheet_infos_ods(
         cells: s
             .iter()
             .filter_map(|c| {
+                let (row, col) = c.0;
                 let (col_span, row_span, already_inside_span) =
-                    get_cell_span_ods(c.0 .0, c.0 .1, c.1.col_span(), c.1.row_span(), &merged);
+                    get_cell_span_ods(col, row, c.1.col_span(), c.1.row_span(), &merged);
                 if already_inside_span {
                     None
                 } else {
                     Some(CellInfos {
-                x: c.0 .0,
-                y: c.0 .1,
+                        x: col,
+                        y: row,
                         col_span: col_span,
                         row_span: row_span,
                 value: match c.1.value {
@@ -462,7 +463,7 @@ fn get_sheet_infos_ods(
                         SheetValue::String(time_delta.to_string())
                     }
                 },
-                        style: get_cell_style_ods(w, s, &c.1, c.0 .0, c.0 .1),
+                        style: get_cell_style_ods(w, s, &c.1, col, row),
                     })
                 }
             })
