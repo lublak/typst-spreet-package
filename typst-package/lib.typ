@@ -8,28 +8,16 @@
   ),
 ) = {
   if options.full {
-    if options.sheets.len() == 0 {
+    if options.at("sheets", default: ()).len() == 0 {
       cbor(spreet.decode_full(data))
     } else {
       cbor(spreet.decode_full_with_indexes(data, options.sheets))
     }
   } else {
-    if options.sheets.len() == 0 {
+    if options.at("sheets", default: ()).len() == 0 {
       cbor(spreet.decode(data))
     } else {
       cbor(spreet.decode_with_indexes(data, options.sheets))
     }
   }
 }
-
-#let file-decode(
-  path,
-  options: (
-    sheets: (),
-    full: false,
-  ),
-) = {
-  decode(read(path, encoding: none), options: options)
-}
-
-#let format() = {}
