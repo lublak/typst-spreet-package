@@ -104,13 +104,13 @@ struct CellStyle {
     //format: String,
 }
 
-#[derive(Serialize, Deserialize)]
-struct CellBorderStyle {
-    left: String,
-    top: String,
-    right: String,
-    bottom: String,
-}
+//#[derive(Serialize, Deserialize)]
+//struct CellBorderStyle {
+//    left: String,
+//    top: String,
+//    right: String,
+//    bottom: String,
+//}
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -205,9 +205,9 @@ fn get_cell_span_xls(col: u32, row: u32, merged: &[umya_spreadsheet::Range]) -> 
             .unwrap_or(start_row);
 
         if col >= start_col && col <= end_col && row >= start_row && row <= end_row {
-        if col == start_col && row == start_row {
-            let col_span = end_col.saturating_sub(start_col).saturating_add(1);
-            let row_span = end_row.saturating_sub(start_row).saturating_add(1);
+            if col == start_col && row == start_row {
+                let col_span = end_col.saturating_sub(start_col).saturating_add(1);
+                let row_span = end_row.saturating_sub(start_row).saturating_add(1);
                 return (col_span, row_span, false);
             }
             return (1, 1, true);
@@ -218,22 +218,82 @@ fn get_cell_span_xls(col: u32, row: u32, merged: &[umya_spreadsheet::Range]) -> 
 
 fn get_sheet_infos_xls(s: &umya_spreadsheet::Worksheet) -> WorkSheetInfos {
     let merged = s.get_merge_cells();
+    let mut row_header_max = 0;
+    let mut col_header_max = 0;
+    for merged_range in merged {
+        let start_col = merged_range
+            .get_coordinate_start_col()
+            .map(|c| *c.get_num())
+            .unwrap_or(1);
+        let start_row = merged_range
+            .get_coordinate_start_row()
+            .map(|r| *r.get_num())
+            .unwrap_or(1);
+        let end_col = merged_range
+            .get_coordinate_end_col()
+            .map(|c| *c.get_num())
+            .unwrap_or(start_col);
+        let end_row = merged_range
+            .get_coordinate_end_row()
+            .map(|r| *r.get_num())
+            .unwrap_or(start_row);
+
+        if end_row > row_header_max {
+            row_header_max = end_row;
+        }
+
+        if end_col > col_header_max {
+            col_header_max = end_col;
+        }
+    }
+    for c in s.get_cell_collection() {
+        let coord = c.get_coordinate();
+        let col = *coord.get_col_num();
+        let row = *coord.get_row_num();
+        if row > row_header_max {
+            row_header_max = row;
+        }
+
+        if col > col_header_max {
+            col_header_max = col;
+        }
+    }
     return WorkSheetInfos {
         name: s.get_name().to_string(),
-        rows: s
-            .get_row_dimensions()
-            .iter()
-            .map(|r| RowInfos {
-                height: format!("{}pt", r.get_height()),
-                hidden: *r.get_hidden(),
+        rows: (0..row_header_max)
+            .map(|r| {
+                let r = r + 1;
+                s.get_row_dimension(&r).map_or_else(
+                    || {
+                        let def = umya_spreadsheet::Row::default();
+                        RowInfos {
+                            height: format!("{}pt", def.get_height()),
+                            hidden: *def.get_hidden(),
+                        }
+                    },
+                    |r| RowInfos {
+                        height: format!("{}pt", r.get_height()),
+                        hidden: *r.get_hidden(),
+                    },
+                )
             })
             .collect(),
-        cols: s
-            .get_column_dimensions()
-            .iter()
-            .map(|r| ColInfos {
-                width: format!("{}pt", r.get_width()),
-                hidden: *r.get_hidden(),
+        cols: (0..col_header_max)
+            .map(|c| {
+                let c = c + 1;
+                s.get_column_dimension_by_number(&c).map_or_else(
+                    || {
+                        let def = umya_spreadsheet::Column::default();
+                        ColInfos {
+                            width: format!("{}pt", def.get_width()),
+                            hidden: *def.get_hidden(),
+                        }
+                    },
+                    |r| ColInfos {
+                        width: format!("{}pt", r.get_width()),
+                        hidden: *r.get_hidden(),
+                    },
+                )
             })
             .collect(),
         cells: s
@@ -248,28 +308,28 @@ fn get_sheet_infos_xls(s: &umya_spreadsheet::Worksheet) -> WorkSheetInfos {
                     None
                 } else {
                     Some(CellInfos {
-                    x: col - 1,
-                    y: row - 1,
-                    value: match c.get_raw_value() {
-                        umya_spreadsheet::CellRawValue::String(value) => {
-                            SheetValue::String(value.to_string())
-                        }
-                        umya_spreadsheet::CellRawValue::RichText(rich_text) => {
-                            SheetValue::String(rich_text.get_text().to_string())
-                        }
-                        umya_spreadsheet::CellRawValue::Lazy(_) => SheetValue::Null,
+                        x: col - 1,
+                        y: row - 1,
+                        value: match c.get_raw_value() {
+                            umya_spreadsheet::CellRawValue::String(value) => {
+                                SheetValue::String(value.to_string())
+                            }
+                            umya_spreadsheet::CellRawValue::RichText(rich_text) => {
+                                SheetValue::String(rich_text.get_text().to_string())
+                            }
+                            umya_spreadsheet::CellRawValue::Lazy(_) => SheetValue::Null,
                             umya_spreadsheet::CellRawValue::Numeric(value) => {
                                 SheetValue::Float(*value)
                             }
-                        umya_spreadsheet::CellRawValue::Bool(value) => SheetValue::Bool(*value),
-                        umya_spreadsheet::CellRawValue::Error(cell_error_type) => {
-                            SheetValue::String(cell_error_type.to_string())
-                        }
-                        umya_spreadsheet::CellRawValue::Empty => SheetValue::Null,
-                    },
-                    col_span: col_span,
-                    row_span: row_span,
-                    style: get_cell_style_xls(c),
+                            umya_spreadsheet::CellRawValue::Bool(value) => SheetValue::Bool(*value),
+                            umya_spreadsheet::CellRawValue::Error(cell_error_type) => {
+                                SheetValue::String(cell_error_type.to_string())
+                            }
+                            umya_spreadsheet::CellRawValue::Empty => SheetValue::Null,
+                        },
+                        col_span: col_span,
+                        row_span: row_span,
+                        style: get_cell_style_xls(c),
                     })
                 }
             })
@@ -405,14 +465,14 @@ fn get_sheet_infos_ods(
     let mut col_header_max = 0;
     for c in s.iter() {
         let (row, col) = c.0;
-        let row_end = row + c.1.row_span();
-        let col_end = col + c.1.col_span();
-        if row_end > row_header_max {
-            row_header_max = row_end;
+        let end_row = row + c.1.row_span();
+        let end_col = col + c.1.col_span();
+        if end_row > row_header_max {
+            row_header_max = end_row;
         }
 
-        if col_end > col_header_max {
-            col_header_max = col_end;
+        if end_col > col_header_max {
+            col_header_max = end_col;
         }
     }
     return WorkSheetInfos {
@@ -451,32 +511,32 @@ fn get_sheet_infos_ods(
                         y: row,
                         col_span: col_span,
                         row_span: row_span,
-                value: match c.1.value {
-                    spreadsheet_ods::Value::Empty => SheetValue::Null,
-                    spreadsheet_ods::Value::Boolean(value) => SheetValue::Bool(*value),
-                    spreadsheet_ods::Value::Number(value) => SheetValue::Float(*value),
-                    spreadsheet_ods::Value::Percentage(value) => SheetValue::Float(*value),
-                    spreadsheet_ods::Value::Currency(value, _) => SheetValue::Float(*value),
+                        value: match c.1.value {
+                            spreadsheet_ods::Value::Empty => SheetValue::Null,
+                            spreadsheet_ods::Value::Boolean(value) => SheetValue::Bool(*value),
+                            spreadsheet_ods::Value::Number(value) => SheetValue::Float(*value),
+                            spreadsheet_ods::Value::Percentage(value) => SheetValue::Float(*value),
+                            spreadsheet_ods::Value::Currency(value, _) => SheetValue::Float(*value),
                             spreadsheet_ods::Value::Text(value) => {
                                 SheetValue::String(value.clone())
                             }
-                    spreadsheet_ods::Value::TextXml(xml_tags) => {
-                        let mut buf = String::new();
-                        for t in xml_tags {
-                            if !buf.is_empty() {
-                                buf.push('\n');
+                            spreadsheet_ods::Value::TextXml(xml_tags) => {
+                                let mut buf = String::new();
+                                for t in xml_tags {
+                                    if !buf.is_empty() {
+                                        buf.push('\n');
+                                    }
+                                    t.extract_text(&mut buf);
+                                }
+                                SheetValue::String(buf)
                             }
-                            t.extract_text(&mut buf);
-                        }
-                        SheetValue::String(buf)
-                    }
-                    spreadsheet_ods::Value::DateTime(naive_date_time) => {
-                        SheetValue::String(naive_date_time.to_string())
-                    }
-                    spreadsheet_ods::Value::TimeDuration(time_delta) => {
-                        SheetValue::String(time_delta.to_string())
-                    }
-                },
+                            spreadsheet_ods::Value::DateTime(naive_date_time) => {
+                                SheetValue::String(naive_date_time.to_string())
+                            }
+                            spreadsheet_ods::Value::TimeDuration(time_delta) => {
+                                SheetValue::String(time_delta.to_string())
+                            }
+                        },
                         style: get_cell_style_ods(w, s, &c.1, col, row),
                     })
                 }
