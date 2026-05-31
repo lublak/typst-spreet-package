@@ -149,7 +149,7 @@ fn get_sheet_data(sd: calamine::Range<Data>) -> Vec<Vec<SheetValue>> {
         .collect()
 }
 
-pub fn get_cell_style_xls(cell: &umya_spreadsheet::Cell) -> CellStyle {
+fn get_cell_style_xls(cell: &umya_spreadsheet::Cell) -> CellStyle {
     let cell_style = cell.get_style();
 
     let font = cell_style
@@ -184,7 +184,7 @@ pub fn get_cell_style_xls(cell: &umya_spreadsheet::Cell) -> CellStyle {
     CellStyle { font }
 }
 
-fn get_cell_span_xls(col: u32, row: u32, merged: &[umya_spreadsheet::Range]) -> (u32, u32) {
+fn get_cell_span_xls(col: u32, row: u32, merged: &[umya_spreadsheet::Range]) -> (u32, u32, bool) {
     for merged_range in merged {
         let start_col = merged_range
             .get_coordinate_start_col()
@@ -203,13 +203,16 @@ fn get_cell_span_xls(col: u32, row: u32, merged: &[umya_spreadsheet::Range]) -> 
             .map(|r| *r.get_num())
             .unwrap_or(start_row);
 
+        if col >= start_col && col <= end_col && row >= start_row && row <= end_row {
         if col == start_col && row == start_row {
             let col_span = end_col.saturating_sub(start_col).saturating_add(1);
             let row_span = end_row.saturating_sub(start_row).saturating_add(1);
-            return (col_span, row_span);
+                return (col_span, row_span, false);
+            }
+            return (1, 1, true);
         }
     }
-    return (1, 1);
+    return (1, 1, false);
 }
 
 fn get_sheet_infos_xls(s: &umya_spreadsheet::Worksheet) -> WorkSheetInfos {
@@ -235,12 +238,15 @@ fn get_sheet_infos_xls(s: &umya_spreadsheet::Worksheet) -> WorkSheetInfos {
         cells: s
             .get_cell_collection()
             .iter()
-            .map(|c| {
+            .filter_map(|c| {
                 let coord = c.get_coordinate();
                 let col = *coord.get_col_num();
                 let row = *coord.get_row_num();
-                let (col_span, row_span) = get_cell_span_xls(col, row, merged);
-                CellInfos {
+                let (col_span, row_span, already_inside_span) = get_cell_span_xls(col, row, merged);
+                if already_inside_span {
+                    None
+                } else {
+                    Some(CellInfos {
                     x: col - 1,
                     y: row - 1,
                     value: match c.get_raw_value() {
@@ -251,7 +257,9 @@ fn get_sheet_infos_xls(s: &umya_spreadsheet::Worksheet) -> WorkSheetInfos {
                             SheetValue::String(rich_text.get_text().to_string())
                         }
                         umya_spreadsheet::CellRawValue::Lazy(_) => SheetValue::Null,
-                        umya_spreadsheet::CellRawValue::Numeric(value) => SheetValue::Float(*value),
+                            umya_spreadsheet::CellRawValue::Numeric(value) => {
+                                SheetValue::Float(*value)
+                            }
                         umya_spreadsheet::CellRawValue::Bool(value) => SheetValue::Bool(*value),
                         umya_spreadsheet::CellRawValue::Error(cell_error_type) => {
                             SheetValue::String(cell_error_type.to_string())
@@ -261,10 +269,34 @@ fn get_sheet_infos_xls(s: &umya_spreadsheet::Worksheet) -> WorkSheetInfos {
                     col_span: col_span,
                     row_span: row_span,
                     style: get_cell_style_xls(c),
+                    })
                 }
             })
             .collect(),
     };
+}
+
+fn get_cell_span_ods(
+    col: u32,
+    row: u32,
+    col_span: u32,
+    row_span: u32,
+    merged: &Vec<OdsMergedCellInfo>,
+) -> (u32, u32, bool) {
+    if col_span > 1 || row_span > 1 {
+        return (col_span, row_span, false);
+    }
+    for merged_range in merged {
+        let start_col = merged_range.start_col;
+        let start_row = merged_range.start_row;
+        let end_col = merged_range.end_col;
+        let end_row = merged_range.end_row;
+
+        if col >= start_col && col <= end_col && row >= start_row && row <= end_row {
+            return (1, 1, true);
+        }
+    }
+    return (1, 1, false);
 }
 
 fn get_cell_style_ods(
@@ -312,7 +344,7 @@ fn get_cell_style_ods(
                 bold: false,
                 italic: false,
                 size: "10pt".to_string(),
-                color: "#000000".to_string(),
+                color: "#hmmm".to_string(),
                 underline: CellFontUnderline::None,
                 strike: false,
             },
@@ -320,10 +352,38 @@ fn get_cell_style_ods(
     }
 }
 
+pub struct OdsMergedCellInfo {
+    pub start_row: u32,
+    pub start_col: u32,
+    pub end_row: u32,
+    pub end_col: u32,
+}
+
+fn get_merge_cells_ods(sheet: &spreadsheet_ods::Sheet) -> Vec<OdsMergedCellInfo> {
+    let mut merged_cells = Vec::new();
+
+    for ((row, col), _) in sheet.iter() {
+        let row_span = sheet.row_span(row, col);
+        let col_span = sheet.col_span(row, col);
+
+        if row_span > 1 || col_span > 1 {
+            merged_cells.push(OdsMergedCellInfo {
+                start_col: col,
+                start_row: row,
+                end_col: col + col_span,
+                end_row: row + row_span,
+            });
+        }
+    }
+
+    merged_cells
+}
+
 fn get_sheet_infos_ods(
     w: &spreadsheet_ods::WorkBook,
     s: &spreadsheet_ods::Sheet,
 ) -> WorkSheetInfos {
+    let merged = get_merge_cells_ods(s);
     return WorkSheetInfos {
         name: s.name().to_string(),
         rows: (0..s.row_header_max())
@@ -339,7 +399,7 @@ fn get_sheet_infos_ods(
         cols: (0..s.col_header_max())
             .map(|r| ColInfos {
                 width: s.col_width(r).to_string(),
-                hidden: match s.row_visible(r) {
+                hidden: match s.col_visible(r) {
                     spreadsheet_ods::sheet::Visibility::Visible => false,
                     spreadsheet_ods::sheet::Visibility::Collapsed => true,
                     spreadsheet_ods::sheet::Visibility::Filtered => true,
@@ -348,18 +408,26 @@ fn get_sheet_infos_ods(
             .collect(),
         cells: s
             .iter()
-            .map(|c| CellInfos {
+            .filter_map(|c| {
+                let (col_span, row_span, already_inside_span) =
+                    get_cell_span_ods(c.0 .0, c.0 .1, c.1.col_span(), c.1.row_span(), &merged);
+                if already_inside_span {
+                    None
+                } else {
+                    Some(CellInfos {
                 x: c.0 .0,
                 y: c.0 .1,
-                col_span: c.1.col_span(),
-                row_span: c.1.row_span(),
+                        col_span: col_span,
+                        row_span: row_span,
                 value: match c.1.value {
                     spreadsheet_ods::Value::Empty => SheetValue::Null,
                     spreadsheet_ods::Value::Boolean(value) => SheetValue::Bool(*value),
                     spreadsheet_ods::Value::Number(value) => SheetValue::Float(*value),
                     spreadsheet_ods::Value::Percentage(value) => SheetValue::Float(*value),
                     spreadsheet_ods::Value::Currency(value, _) => SheetValue::Float(*value),
-                    spreadsheet_ods::Value::Text(value) => SheetValue::String(value.clone()),
+                            spreadsheet_ods::Value::Text(value) => {
+                                SheetValue::String(value.clone())
+                            }
                     spreadsheet_ods::Value::TextXml(xml_tags) => {
                         let mut buf = String::new();
                         for t in xml_tags {
@@ -378,6 +446,8 @@ fn get_sheet_infos_ods(
                     }
                 },
                 style: get_cell_style_ods(w, &c.1),
+                    })
+                }
             })
             .collect(),
     };
