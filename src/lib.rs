@@ -401,22 +401,36 @@ fn get_sheet_infos_ods(
     s: &spreadsheet_ods::Sheet,
 ) -> WorkSheetInfos {
     let merged = get_merge_cells_ods(s);
+    let mut row_header_max = 0;
+    let mut col_header_max = 0;
+    for c in s.iter() {
+        let (row, col) = c.0;
+        let row_end = row + c.1.row_span();
+        let col_end = col + c.1.col_span();
+        if row_end > row_header_max {
+            row_header_max = row_end;
+        }
+
+        if col_end > col_header_max {
+            col_header_max = col_end;
+        }
+    }
     return WorkSheetInfos {
         name: s.name().to_string(),
-        rows: (0..s._row_header_len())
+        rows: (0..row_header_max)
             .map(|r| RowInfos {
-                height: s.row_height(r as u32).to_string(),
-                hidden: match s.row_visible(r as u32) {
+                height: s.row_height(r).to_string(),
+                hidden: match s.row_visible(r) {
                     spreadsheet_ods::sheet::Visibility::Visible => false,
                     spreadsheet_ods::sheet::Visibility::Collapsed => true,
                     spreadsheet_ods::sheet::Visibility::Filtered => true,
                 },
             })
             .collect(),
-        cols: (0..s._col_header_len())
+        cols: (0..col_header_max)
             .map(|r| ColInfos {
-                width: s.col_width(r as u32).to_string(),
-                hidden: match s.col_visible(r as u32) {
+                width: s.col_width(r).to_string(),
+                hidden: match s.col_visible(r) {
                     spreadsheet_ods::sheet::Visibility::Visible => false,
                     spreadsheet_ods::sheet::Visibility::Collapsed => true,
                     spreadsheet_ods::sheet::Visibility::Filtered => true,
