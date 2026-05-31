@@ -403,20 +403,20 @@ fn get_sheet_infos_ods(
     let merged = get_merge_cells_ods(s);
     return WorkSheetInfos {
         name: s.name().to_string(),
-        rows: (0..s.row_header_max())
+        rows: (0..s._row_header_len())
             .map(|r| RowInfos {
-                height: s.row_height(r).to_string(),
-                hidden: match s.row_visible(r) {
+                height: s.row_height(r as u32).to_string(),
+                hidden: match s.row_visible(r as u32) {
                     spreadsheet_ods::sheet::Visibility::Visible => false,
                     spreadsheet_ods::sheet::Visibility::Collapsed => true,
                     spreadsheet_ods::sheet::Visibility::Filtered => true,
                 },
             })
             .collect(),
-        cols: (0..s.col_header_max())
+        cols: (0..s._col_header_len())
             .map(|r| ColInfos {
-                width: s.col_width(r).to_string(),
-                hidden: match s.col_visible(r) {
+                width: s.col_width(r as u32).to_string(),
+                hidden: match s.col_visible(r as u32) {
                     spreadsheet_ods::sheet::Visibility::Visible => false,
                     spreadsheet_ods::sheet::Visibility::Collapsed => true,
                     spreadsheet_ods::sheet::Visibility::Filtered => true,
