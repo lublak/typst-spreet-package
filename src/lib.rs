@@ -343,7 +343,7 @@ fn get_cell_style_ods(
                                 .attr("style:text-underline-style")
                                 .map(|v| match v {
                                     "double" => CellFontUnderline::Double,
-                                    _ => CellFontUnderline::None,
+                                    _ => CellFontUnderline::Single,
                                 })
                                 .unwrap_or(CellFontUnderline::None),
                             _ => CellFontUnderline::None,
