@@ -159,7 +159,7 @@ fn get_cell_style_xls(cell: &umya_spreadsheet::Cell) -> CellStyle {
             bold: *font.get_bold(),
             italic: *font.get_italic(),
             size: format!("{}pt", font.get_size()),
-            color: font.get_color().get_argb().to_string(),
+            color: format!("#{}", font.get_color().get_argb().to_lowercase()),
             underline: match font.get_font_underline().get_val() {
                 umya_spreadsheet::structs::UnderlineValues::Double => CellFontUnderline::Double,
                 umya_spreadsheet::structs::UnderlineValues::DoubleAccounting => {
