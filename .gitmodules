@@ -1,0 +1,3 @@
+[submodule "wasm-minimal-protocol"]
+	path = wasm-minimal-protocol
+	url = https://github.com/typst-community/wasm-minimal-protocol
